@@ -8,6 +8,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from src.application.project import create_project, sync_project
+from src.application.project_file import load_project_file, save_project_file
 from src.application.ui_state import build_ui_state, set_unit_voice
 
 
@@ -35,9 +36,22 @@ def handle(request: dict) -> dict:
     if action == "load":
         return respond(create_project(DEFAULT_MANUSCRIPT), voices)
 
+    if action == "open-file":
+        path = request.get("path")
+        if not isinstance(path, str) or not path:
+            raise ValueError("open-file requires path")
+        return respond(load_project_file(path), voices)
+
     project = request.get("project")
     if not isinstance(project, dict):
         raise ValueError("bridge request requires project")
+
+    if action == "save-file":
+        path = request.get("path")
+        if not isinstance(path, str) or not path:
+            raise ValueError("save-file requires path")
+        save_project_file(path, project)
+        return respond(project, voices)
 
     if action == "sync":
         manuscript = request.get("manuscript")
