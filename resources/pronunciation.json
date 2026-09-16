@@ -1,0 +1,38 @@
+{
+  "CNC": {
+    "type": "rewrite",
+    "value": "Zeh Enn Zeh"
+  },
+  "HGR20": {
+    "type": "rewrite",
+    "value": "Ha Geh Err Zwanzig"
+  },
+  "Linearführung": {
+    "type": "rewrite",
+    "value": "lineare Führung"
+  },
+  "Schrittmotor": {
+    "type": "rewrite",
+    "value": "Schritt-Motor"
+  },
+  "Gewindespindel": {
+    "type": "rewrite",
+    "value": "Gewinde-Spindel"
+  },
+  "Aluminiumprofil": {
+    "type": "rewrite",
+    "value": "Aluminium-Profil"
+  },
+  "Werkzeugweg": {
+    "type": "rewrite",
+    "value": "Werkzeug-Weg"
+  },
+  "Probelauf": {
+    "type": "rewrite",
+    "value": "Probe-Lauf"
+  },
+  "Montage": {
+    "type": "ipa",
+    "value": "mɔnˈtaːʒə"
+  }
+}

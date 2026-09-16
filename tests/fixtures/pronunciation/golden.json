@@ -1,0 +1,15 @@
+{
+  "rewrite": [
+    {
+      "source": "Linearführung",
+      "render": "lineare Führung"
+    }
+  ],
+  "ipa": [
+    {
+      "source": "Montage",
+      "ipa": "mɔnˈtaːʒə",
+      "render": "[[ mɔnˈtaːʒə ]]"
+    }
+  ]
+}

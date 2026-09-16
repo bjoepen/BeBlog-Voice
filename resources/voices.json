@@ -1,0 +1,12 @@
+{
+  "thorsten-high": {
+    "name": "Thorsten High",
+    "role": "default",
+    "modelRef": "de_DE-thorsten-high"
+  },
+  "thorsten-hessisch": {
+    "name": "Thorsten Hessisch",
+    "role": "special",
+    "modelRef": "Thorsten-Voice_Hessisch_Piper_high-Oct2023"
+  }
+}

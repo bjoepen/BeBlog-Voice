@@ -1,0 +1,27 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Node / Tauri – reserved for later builds
+node_modules/
+dist/
+target/
+src-tauri/target/
+
+# Runtime / generated audio
+output/
+*.wav
+
+# Piper models – MUST NOT enter Git
+*.onnx
+*.onnx.json
+
+# Local configuration
+.env
+.env.*
+*.local.json
