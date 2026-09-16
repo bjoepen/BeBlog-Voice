@@ -1,6 +1,5 @@
 from copy import deepcopy
 from uuid import uuid4
-from difflib import SequenceMatcher
 
 from src.core.manuscript import split_paragraphs
 
@@ -63,6 +62,8 @@ def serialize_project(project: dict) -> dict:
         "manuscript": manuscript,
         "units": deepcopy(serialized_units),
     }
+
+
 def sync_project(
     project: dict,
     manuscript: str,
@@ -102,29 +103,41 @@ def sync_project(
             "project units do not match manuscript"
         )
 
-    matcher = SequenceMatcher(
-        a=old_paragraphs,
-        b=new_paragraphs,
-        autojunk=False,
-    )
+    new_units = [None] * len(new_paragraphs)
+    used_old = set()
 
-    new_units = []
+    # Pass 1: preserve exact paragraph identity even when moved.
+    for new_index, paragraph in enumerate(new_paragraphs):
+        for old_index, old_paragraph in enumerate(old_paragraphs):
+            if old_index in used_old:
+                continue
 
-    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
-        if tag == "equal":
-            new_units.extend(
-                deepcopy(old_units[i1:i2])
-            )
+            if paragraph == old_paragraph:
+                new_units[new_index] = deepcopy(
+                    old_units[old_index]
+                )
+                used_old.add(old_index)
+                break
+
+    # Pass 2: unmatched paragraph at the same structural position is
+    # treated as an edited paragraph and keeps its user state.
+    for new_index in range(len(new_paragraphs)):
+        if new_units[new_index] is not None:
             continue
 
-        if tag in {"insert", "replace"}:
-            new_units.extend(
-                _new_unit()
-                for _paragraph
-                in new_paragraphs[j1:j2]
+        if (
+            new_index < len(old_units)
+            and new_index not in used_old
+        ):
+            new_units[new_index] = deepcopy(
+                old_units[new_index]
             )
+            used_old.add(new_index)
 
-        # delete contributes no units
+    # Pass 3: anything still unmatched is genuinely new.
+    for new_index in range(len(new_units)):
+        if new_units[new_index] is None:
+            new_units[new_index] = _new_unit()
 
     return {
         "version": PROJECT_VERSION,
