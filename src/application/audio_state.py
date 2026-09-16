@@ -38,3 +38,39 @@ def audio_state(
         return "ready"
 
     return "stale"
+
+
+def begin_render(
+    *,
+    rendered_fingerprint: str | None,
+) -> dict:
+    return {
+        "status": "rendering",
+        "renderedFingerprint": rendered_fingerprint,
+    }
+
+
+def complete_render(
+    *,
+    render_text: str,
+    voice_id: str,
+) -> dict:
+    return {
+        "status": "ready",
+        "renderedFingerprint": render_fingerprint(
+            render_text=render_text,
+            voice_id=voice_id,
+        ),
+    }
+
+
+def fail_render(
+    *,
+    rendered_fingerprint: str | None,
+    error: str,
+) -> dict:
+    return {
+        "status": "error",
+        "renderedFingerprint": rendered_fingerprint,
+        "error": error,
+    }
