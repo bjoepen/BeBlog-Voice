@@ -8,6 +8,7 @@
   let error = "";
   let syncTimer;
   let audioByUnit = {};
+  let playingUnitId = null;
 
   function applyView(view) {
     manuscript = view.manuscript;
@@ -19,32 +20,20 @@
 
   function setAudioResult(unitId, result) {
     audioByUnit = { ...audioByUnit, [unitId]: result };
-    units = units.map((unit) =>
-      unit.id === unitId
-        ? { ...unit, audioState: result.audioState }
-        : unit
-    );
+    units = units.map((unit) => unit.id === unitId ? { ...unit, audioState: result.audioState } : unit);
   }
 
   onMount(async () => {
-    try {
-      applyView(await projectBridge.loadProjectState());
-    } catch (reason) {
-      error = String(reason);
-    } finally {
-      loading = false;
-    }
+    try { applyView(await projectBridge.loadProjectState()); }
+    catch (reason) { error = String(reason); }
+    finally { loading = false; }
   });
 
   function manuscriptChanged() {
     clearTimeout(syncTimer);
     syncTimer = setTimeout(async () => {
-      try {
-        error = "";
-        applyView(await projectBridge.syncManuscript(manuscript));
-      } catch (reason) {
-        error = String(reason);
-      }
+      try { error = ""; applyView(await projectBridge.syncManuscript(manuscript)); }
+      catch (reason) { error = String(reason); }
     }, 250);
   }
 
@@ -52,57 +41,56 @@
     try {
       error = "";
       const view = await projectBridge.openProjectFile();
-      if (view) {
-        audioByUnit = {};
-        applyView(view);
-      }
-    } catch (reason) {
-      error = String(reason);
-    }
+      if (view) { audioByUnit = {}; playingUnitId = null; applyView(view); }
+    } catch (reason) { error = String(reason); }
   }
 
   async function saveProject() {
-    try {
-      error = "";
-      await projectBridge.saveProjectFile();
-    } catch (reason) {
-      error = String(reason);
-    }
+    try { error = ""; await projectBridge.saveProjectFile(); }
+    catch (reason) { error = String(reason); }
   }
 
   async function setUnitVoice(unitId, voiceId) {
-    try {
-      error = "";
-      applyView(await projectBridge.setUnitVoice(unitId, voiceId));
-    } catch (reason) {
-      error = String(reason);
-    }
+    try { error = ""; applyView(await projectBridge.setUnitVoice(unitId, voiceId)); }
+    catch (reason) { error = String(reason); }
   }
 
   async function renderUnit(unitId) {
     const previousAudio = audioByUnit[unitId] ?? null;
     setAudioResult(unitId, { ...previousAudio, audioState: "rendering" });
-
     try {
       error = "";
       const result = await projectBridge.renderProjectUnit(unitId, previousAudio);
       setAudioResult(unitId, result);
-      if (result.audioState === "error" && result.error) {
-        error = result.error;
-      }
+      if (result.audioState === "error" && result.error) error = result.error;
     } catch (reason) {
       setAudioResult(unitId, { ...previousAudio, audioState: "error" });
       error = String(reason);
     }
   }
+
+  async function playUnit(unit) {
+    const audio = audioByUnit[unit.id];
+    if (unit.audioState !== "ready" || !audio?.audioPath) return;
+    try {
+      error = "";
+      await projectBridge.playUnitAudio(unit.id, audio.audioPath);
+      playingUnitId = unit.id;
+    } catch (reason) { error = String(reason); }
+  }
+
+  async function stopUnit(unitId) {
+    try {
+      error = "";
+      await projectBridge.stopUnitAudio(unitId);
+      if (playingUnitId === unitId) playingUnitId = null;
+    } catch (reason) { error = String(reason); }
+  }
 </script>
 
 <main class="shell">
   <header>
-    <div>
-      <p class="eyebrow">BeBlog</p>
-      <h1>Voice</h1>
-    </div>
+    <div><p class="eyebrow">BeBlog</p><h1>Voice</h1></div>
     <div class="header-actions">
       <p class="status">{units.length} Absätze · Audio pro Render Unit</p>
       <div class="project-actions" aria-label="Projektdatei">
@@ -112,33 +100,19 @@
     </div>
   </header>
 
-  {#if error}
-    <p class="error" role="alert">{error}</p>
-  {/if}
+  {#if error}<p class="error" role="alert">{error}</p>{/if}
 
   <section class="workspace" aria-labelledby="manuscript-heading">
     <div class="section-heading">
-      <div>
-        <p class="label">MANUSKRIPT</p>
-        <h2 id="manuscript-heading">Sprechtext</h2>
-      </div>
+      <div><p class="label">MANUSKRIPT</p><h2 id="manuscript-heading">Sprechtext</h2></div>
       <p>Leerzeile = neue Render Unit</p>
     </div>
-
-    <textarea
-      bind:value={manuscript}
-      oninput={manuscriptChanged}
-      aria-label="Manuskript"
-      disabled={loading}
-    ></textarea>
+    <textarea bind:value={manuscript} oninput={manuscriptChanged} aria-label="Manuskript" disabled={loading}></textarea>
   </section>
 
   <section class="workspace" aria-labelledby="units-heading">
     <div class="section-heading">
-      <div>
-        <p class="label">RENDER UNITS</p>
-        <h2 id="units-heading">Absätze & Stimmen</h2>
-      </div>
+      <div><p class="label">RENDER UNITS</p><h2 id="units-heading">Absätze & Stimmen</h2></div>
       <p>Stimme wird pro Absatz gewählt</p>
     </div>
 
@@ -146,29 +120,26 @@
       {#each units as unit (unit.id)}
         <article class="unit">
           <div class="unit-number">{unit.number}</div>
-          <div class="unit-content">
-            <p>{unit.text}</p>
-            <span class="audio-state">{unit.audioState}</span>
-          </div>
+          <div class="unit-content"><p>{unit.text}</p><span class="audio-state">{unit.audioState}</span></div>
           <label>
             <span>Stimme</span>
-            <select
-              value={unit.voiceId}
-              onchange={(event) => setUnitVoice(unit.id, event.currentTarget.value)}
-              disabled={unit.audioState === "rendering"}
-            >
+            <select value={unit.voiceId} onchange={(event) => setUnitVoice(unit.id, event.currentTarget.value)} disabled={unit.audioState === "rendering"}>
               <option value="thorsten-high">Thorsten High</option>
               <option value="thorsten-hessisch">Thorsten Hessisch</option>
             </select>
           </label>
-          <button
-            type="button"
-            class="render-button"
-            onclick={() => renderUnit(unit.id)}
-            disabled={unit.audioState === "rendering"}
-          >
-            {unit.audioState === "rendering" ? "Rendert …" : "Rendern"}
-          </button>
+          <div class="unit-actions">
+            <button type="button" class="render-button" onclick={() => renderUnit(unit.id)} disabled={unit.audioState === "rendering"}>
+              {unit.audioState === "rendering" ? "Rendert …" : "Rendern"}
+            </button>
+            {#if unit.audioState === "ready"}
+              {#if playingUnitId === unit.id}
+                <button type="button" onclick={() => stopUnit(unit.id)}>Stop</button>
+              {:else}
+                <button type="button" onclick={() => playUnit(unit)}>Anhören</button>
+              {/if}
+            {/if}
+          </div>
         </article>
       {/each}
     </div>
@@ -177,16 +148,12 @@
 
 <style>
   :global(*) { box-sizing: border-box; }
-  :global(body) {
-    margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
-    color: #202124;
-    background: #f4f4f2;
-  }
+  :global(body) { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; color: #202124; background: #f4f4f2; }
   .shell { max-width: 1120px; margin: 0 auto; padding: 42px; }
   header { display: flex; justify-content: space-between; align-items: end; gap: 24px; margin-bottom: 28px; }
   .header-actions { display: grid; justify-items: end; gap: 10px; }
-  .project-actions { display: flex; gap: 8px; }
+  .project-actions, .unit-actions { display: flex; gap: 8px; }
+  .unit-actions { align-items: end; justify-content: flex-end; flex-wrap: wrap; }
   button { border: 1px solid #d8d8d5; border-radius: 8px; background: white; padding: 8px 12px; font: inherit; color: #202124; cursor: pointer; }
   button:hover { background: #f7f7f5; }
   button:disabled { cursor: default; opacity: .55; }
@@ -199,14 +166,10 @@
   .error { margin: 0 0 18px; padding: 12px 14px; border-radius: 10px; background: #fff; color: #8b2f2f; font-size: 13px; }
   .workspace { background: white; border-radius: 14px; padding: 22px; margin-bottom: 18px; }
   .section-heading { display: flex; justify-content: space-between; align-items: end; margin-bottom: 16px; }
-  textarea {
-    width: 100%; min-height: 220px; resize: vertical; border: 1px solid #d8d8d5;
-    border-radius: 10px; padding: 16px; font: inherit; font-size: 16px; line-height: 1.55;
-    background: #fff;
-  }
+  textarea { width: 100%; min-height: 220px; resize: vertical; border: 1px solid #d8d8d5; border-radius: 10px; padding: 16px; font: inherit; font-size: 16px; line-height: 1.55; background: #fff; }
   textarea:disabled { opacity: .6; }
   .units { display: grid; gap: 10px; }
-  .unit { display: grid; grid-template-columns: 52px 1fr 190px 92px; gap: 16px; align-items: center; padding: 15px 0; border-top: 1px solid #ececea; }
+  .unit { display: grid; grid-template-columns: 52px 1fr 190px 180px; gap: 16px; align-items: center; padding: 15px 0; border-top: 1px solid #ececea; }
   .unit:first-child { border-top: 0; }
   .unit-number { font-variant-numeric: tabular-nums; color: #777; font-size: 13px; }
   .unit-content p { margin: 0 0 6px; line-height: 1.4; }
