@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::sync::Mutex;
 use tauri::State;
-use tauri_plugin_dialog::DialogExt;
+use tauri_plugin_dialog::{DialogExt, FilePath};
 
 struct ProjectState(Mutex<Option<Value>>);
 
@@ -69,6 +69,20 @@ fn current_project(state: &State<'_, ProjectState>) -> Result<Value, String> {
         .ok_or_else(|| "Project state is not loaded".to_string())
 }
 
+async fn await_file_dialog<F>(show: F) -> Result<Option<FilePath>, String>
+where
+    F: FnOnce(Box<dyn FnOnce(Option<FilePath>) + Send>) + Send,
+{
+    let (sender, receiver) = tauri::async_runtime::channel(1);
+    show(Box::new(move |path| {
+        let _ = sender.blocking_send(path);
+    }));
+    receiver
+        .recv()
+        .await
+        .ok_or_else(|| "Native file dialog closed unexpectedly".to_string())
+}
+
 #[tauri::command]
 fn load_project_state(state: State<'_, ProjectState>) -> Result<Value, String> {
     let response = call_python(json!({ "action": "load" }))?;
@@ -81,12 +95,11 @@ async fn open_project_file(
     app: tauri::AppHandle,
     state: State<'_, ProjectState>,
 ) -> Result<Option<Value>, String> {
-    let path = app
+    let dialog = app
         .dialog()
         .file()
-        .add_filter("BeBlog Voice", &["bbv"])
-        .pick_file()
-        .await;
+        .add_filter("BeBlog Voice", &["bbv"]);
+    let path = await_file_dialog(move |callback| dialog.pick_file(callback)).await?;
 
     let Some(path) = path else {
         return Ok(None);
@@ -110,13 +123,12 @@ async fn save_project_file(
     state: State<'_, ProjectState>,
 ) -> Result<bool, String> {
     let project = current_project(&state)?;
-    let path = app
+    let dialog = app
         .dialog()
         .file()
         .add_filter("BeBlog Voice", &["bbv"])
-        .set_file_name("BeBlog-Voice.bbv")
-        .save_file()
-        .await;
+        .set_file_name("BeBlog-Voice.bbv");
+    let path = await_file_dialog(move |callback| dialog.save_file(callback)).await?;
 
     let Some(path) = path else {
         return Ok(false);
