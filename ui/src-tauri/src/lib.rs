@@ -9,8 +9,7 @@ use tauri_plugin_dialog::DialogExt;
 struct ProjectState(Mutex<Option<Value>>);
 
 fn repo_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../..")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
 fn call_python(request: Value) -> Result<Value, String> {
@@ -54,7 +53,10 @@ fn update_state(state: &State<'_, ProjectState>, response: &Value) -> Result<(),
         .cloned()
         .ok_or_else(|| "Bridge response has no project".to_string())?;
 
-    *state.0.lock().map_err(|_| "Project state lock failed".to_string())? = Some(project);
+    *state
+        .0
+        .lock()
+        .map_err(|_| "Project state lock failed".to_string())? = Some(project);
     Ok(())
 }
 
@@ -75,12 +77,16 @@ fn load_project_state(state: State<'_, ProjectState>) -> Result<Value, String> {
 }
 
 #[tauri::command]
-fn open_project_file(app: tauri::AppHandle, state: State<'_, ProjectState>) -> Result<Option<Value>, String> {
+async fn open_project_file(
+    app: tauri::AppHandle,
+    state: State<'_, ProjectState>,
+) -> Result<Option<Value>, String> {
     let path = app
         .dialog()
         .file()
         .add_filter("BeBlog Voice", &["bbv"])
-        .blocking_pick_file();
+        .pick_file()
+        .await;
 
     let Some(path) = path else {
         return Ok(None);
@@ -99,14 +105,18 @@ fn open_project_file(app: tauri::AppHandle, state: State<'_, ProjectState>) -> R
 }
 
 #[tauri::command]
-fn save_project_file(app: tauri::AppHandle, state: State<'_, ProjectState>) -> Result<bool, String> {
+async fn save_project_file(
+    app: tauri::AppHandle,
+    state: State<'_, ProjectState>,
+) -> Result<bool, String> {
     let project = current_project(&state)?;
     let path = app
         .dialog()
         .file()
         .add_filter("BeBlog Voice", &["bbv"])
         .set_file_name("BeBlog-Voice.bbv")
-        .blocking_save_file();
+        .save_file()
+        .await;
 
     let Some(path) = path else {
         return Ok(false);
