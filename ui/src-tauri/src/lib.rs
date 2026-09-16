@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::sync::Mutex;
 use tauri::State;
+use tauri_plugin_dialog::DialogExt;
 
 struct ProjectState(Mutex<Option<Value>>);
 
@@ -74,6 +75,57 @@ fn load_project_state(state: State<'_, ProjectState>) -> Result<Value, String> {
 }
 
 #[tauri::command]
+fn open_project_file(app: tauri::AppHandle, state: State<'_, ProjectState>) -> Result<Option<Value>, String> {
+    let path = app
+        .dialog()
+        .file()
+        .add_filter("BeBlog Voice", &["bbv"])
+        .blocking_pick_file();
+
+    let Some(path) = path else {
+        return Ok(None);
+    };
+
+    let path = path
+        .as_path()
+        .ok_or_else(|| "Selected project is not a local file".to_string())?;
+
+    let response = call_python(json!({
+        "action": "open-file",
+        "path": path.to_string_lossy(),
+    }))?;
+    update_state(&state, &response)?;
+    Ok(Some(response["view"].clone()))
+}
+
+#[tauri::command]
+fn save_project_file(app: tauri::AppHandle, state: State<'_, ProjectState>) -> Result<bool, String> {
+    let project = current_project(&state)?;
+    let path = app
+        .dialog()
+        .file()
+        .add_filter("BeBlog Voice", &["bbv"])
+        .set_file_name("BeBlog-Voice.bbv")
+        .blocking_save_file();
+
+    let Some(path) = path else {
+        return Ok(false);
+    };
+
+    let path = path
+        .as_path()
+        .ok_or_else(|| "Selected project is not a local file".to_string())?;
+
+    let response = call_python(json!({
+        "action": "save-file",
+        "path": path.to_string_lossy(),
+        "project": project,
+    }))?;
+    update_state(&state, &response)?;
+    Ok(true)
+}
+
+#[tauri::command]
 fn sync_manuscript(manuscript: String, state: State<'_, ProjectState>) -> Result<Value, String> {
     let project = current_project(&state)?;
     let response = call_python(json!({
@@ -105,9 +157,12 @@ fn set_unit_voice(
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .manage(ProjectState(Mutex::new(None)))
         .invoke_handler(tauri::generate_handler![
             load_project_state,
+            open_project_file,
+            save_project_file,
             sync_manuscript,
             set_unit_voice,
         ])
