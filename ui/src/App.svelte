@@ -35,6 +35,25 @@
     }, 250);
   }
 
+  async function openProject() {
+    try {
+      error = "";
+      const view = await projectBridge.openProjectFile();
+      if (view) applyView(view);
+    } catch (reason) {
+      error = String(reason);
+    }
+  }
+
+  async function saveProject() {
+    try {
+      error = "";
+      await projectBridge.saveProjectFile();
+    } catch (reason) {
+      error = String(reason);
+    }
+  }
+
   async function setUnitVoice(unitId, voiceId) {
     try {
       error = "";
@@ -51,7 +70,13 @@
       <p class="eyebrow">BeBlog</p>
       <h1>Voice</h1>
     </div>
-    <p class="status">{units.length} Absätze · Audio noch nicht gerendert</p>
+    <div class="header-actions">
+      <p class="status">{units.length} Absätze · Audio noch nicht gerendert</p>
+      <div class="project-actions" aria-label="Projektdatei">
+        <button type="button" onclick={openProject}>Projekt öffnen</button>
+        <button type="button" class="primary" onclick={saveProject}>Projekt speichern</button>
+      </div>
+    </div>
   </header>
 
   {#if error}
@@ -117,7 +142,13 @@
     background: #f4f4f2;
   }
   .shell { max-width: 1120px; margin: 0 auto; padding: 42px; }
-  header { display: flex; justify-content: space-between; align-items: end; margin-bottom: 28px; }
+  header { display: flex; justify-content: space-between; align-items: end; gap: 24px; margin-bottom: 28px; }
+  .header-actions { display: grid; justify-items: end; gap: 10px; }
+  .project-actions { display: flex; gap: 8px; }
+  button { border: 1px solid #d8d8d5; border-radius: 8px; background: white; padding: 8px 12px; font: inherit; color: #202124; cursor: pointer; }
+  button:hover { background: #f7f7f5; }
+  button.primary { background: #292927; border-color: #292927; color: white; }
+  button.primary:hover { background: #3a3a37; }
   .eyebrow, .label { margin: 0; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: #777; }
   h1 { margin: 2px 0 0; font-size: 32px; font-weight: 650; }
   h2 { margin: 4px 0 0; font-size: 19px; font-weight: 600; }
