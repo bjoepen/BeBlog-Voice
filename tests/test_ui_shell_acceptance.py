@@ -41,14 +41,15 @@ class UIShellAcceptanceTest(unittest.TestCase):
         self.assertIn("RENDER UNITS", app)
         self.assertIn("textarea", app)
 
-    def test_golden_fixture_exposes_explicit_hessian_voice_choice(self):
+    def test_shell_exposes_explicit_voice_choices_without_fixture_text(self):
         app_path = ROOT / "ui" / "src" / "App.svelte"
         app = app_path.read_text(encoding="utf-8")
 
-        self.assertIn("Des werd schon widder!", app)
         self.assertIn("thorsten-high", app)
         self.assertIn("thorsten-hessisch", app)
+        self.assertIn("Thorsten High", app)
         self.assertIn("Thorsten Hessisch", app)
+        self.assertNotIn("Des werd schon widder!", app)
 
     def test_ui_does_not_contain_tts_or_pronunciation_implementation(self):
         source_dir = ROOT / "ui" / "src"
