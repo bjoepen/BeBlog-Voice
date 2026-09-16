@@ -5,6 +5,14 @@ export const projectBridge = {
     return invoke("load_project_state");
   },
 
+  openProjectFile() {
+    return invoke("open_project_file");
+  },
+
+  saveProjectFile() {
+    return invoke("save_project_file");
+  },
+
   syncManuscript(manuscript) {
     return invoke("sync_manuscript", { manuscript });
   },
@@ -15,5 +23,7 @@ export const projectBridge = {
 };
 
 export const loadProjectState = () => projectBridge.loadProjectState();
+export const openProjectFile = () => projectBridge.openProjectFile();
+export const saveProjectFile = () => projectBridge.saveProjectFile();
 export const syncManuscript = (manuscript) => projectBridge.syncManuscript(manuscript);
 export const setUnitVoice = (unitId, voiceId) => projectBridge.setUnitVoice(unitId, voiceId);
