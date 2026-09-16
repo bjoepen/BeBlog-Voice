@@ -176,6 +176,25 @@ fn set_unit_voice(
     Ok(response["view"].clone())
 }
 
+#[tauri::command]
+async fn render_project_unit(
+    unit_id: String,
+    previous_audio: Option<Value>,
+    state: State<'_, ProjectState>,
+) -> Result<Value, String> {
+    let project = current_project(&state)?;
+    let request = json!({
+        "action": "render",
+        "project": project,
+        "unitId": unit_id,
+        "previousAudio": previous_audio,
+    });
+
+    tauri::async_runtime::spawn_blocking(move || call_python(request))
+        .await
+        .map_err(|error| format!("Render bridge task failed: {error}"))?
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -187,6 +206,7 @@ pub fn run() {
             save_project_file,
             sync_manuscript,
             set_unit_voice,
+            render_project_unit,
         ])
         .run(tauri::generate_context!())
         .expect("error while running BeBlog Voice");
