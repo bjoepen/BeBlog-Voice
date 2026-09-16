@@ -64,6 +64,72 @@ def serialize_project(project: dict) -> dict:
     }
 
 
+def deserialize_project(data: dict) -> dict:
+    if not isinstance(data, dict):
+        raise TypeError(
+            "project data must be a dictionary"
+        )
+
+    if data.get("version") != PROJECT_VERSION:
+        raise ValueError(
+            "unsupported project version"
+        )
+
+    manuscript = data.get("manuscript")
+    units = data.get("units")
+
+    if not isinstance(manuscript, str):
+        raise ValueError(
+            "project requires manuscript"
+        )
+
+    if not isinstance(units, list):
+        raise ValueError(
+            "project requires units"
+        )
+
+    paragraphs = split_paragraphs(manuscript)
+
+    if len(paragraphs) != len(units):
+        raise ValueError(
+            "project units do not match manuscript"
+        )
+
+    restored_units = []
+
+    for unit in units:
+        if not isinstance(unit, dict):
+            raise ValueError(
+                "project unit must be a dictionary"
+            )
+
+        unit_id = unit.get("id")
+        voice_id = unit.get("voiceId")
+
+        if not isinstance(unit_id, str) or not unit_id:
+            raise ValueError(
+                "project unit requires stable id"
+            )
+
+        if not isinstance(voice_id, str) or not voice_id:
+            raise ValueError(
+                "project unit requires voiceId"
+            )
+
+        restored_units.append(
+            {
+                "id": unit_id,
+                "voiceId": voice_id,
+            }
+        )
+
+    return {
+        "version": PROJECT_VERSION,
+        "manuscript": manuscript,
+        "units": deepcopy(restored_units),
+    }
+
+
 def sync_project(
     project: dict,
     manuscript: str,
