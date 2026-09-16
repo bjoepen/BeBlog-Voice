@@ -19,7 +19,7 @@ VOICES = {
 
 PRONUNCIATION = {
     "Linearführung": {
-        "mode": "rewrite",
+        "type": "rewrite",
         "value": "lineare Führung",
     }
 }
