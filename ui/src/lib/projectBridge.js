@@ -24,6 +24,14 @@ export const projectBridge = {
   renderProjectUnit(unitId, previousAudio = null) {
     return invoke("render_project_unit", { unitId, previousAudio });
   },
+
+  playUnitAudio(unitId, audioPath) {
+    return invoke("play_unit_audio", { unitId, audioPath });
+  },
+
+  stopUnitAudio(unitId) {
+    return invoke("stop_unit_audio", { unitId });
+  },
 };
 
 export const loadProjectState = () => projectBridge.loadProjectState();
@@ -33,3 +41,6 @@ export const syncManuscript = (manuscript) => projectBridge.syncManuscript(manus
 export const setUnitVoice = (unitId, voiceId) => projectBridge.setUnitVoice(unitId, voiceId);
 export const renderProjectUnit = (unitId, previousAudio = null) =>
   projectBridge.renderProjectUnit(unitId, previousAudio);
+export const playUnitAudio = (unitId, audioPath) =>
+  projectBridge.playUnitAudio(unitId, audioPath);
+export const stopUnitAudio = (unitId) => projectBridge.stopUnitAudio(unitId);
