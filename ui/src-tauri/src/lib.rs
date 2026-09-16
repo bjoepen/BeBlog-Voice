@@ -73,7 +73,7 @@ async fn await_file_dialog<F>(show: F) -> Result<Option<FilePath>, String>
 where
     F: FnOnce(Box<dyn FnOnce(Option<FilePath>) + Send>) + Send,
 {
-    let (sender, receiver) = tauri::async_runtime::channel(1);
+    let (sender, mut receiver) = tauri::async_runtime::channel(1);
     show(Box::new(move |path| {
         let _ = sender.blocking_send(path);
     }));
