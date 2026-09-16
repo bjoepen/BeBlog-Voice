@@ -13,8 +13,13 @@ class UiLiveBindingAcceptanceTests(unittest.TestCase):
         source = APP.read_text(encoding="utf-8")
 
         self.assertIn("projectBridge", source)
-        self.assertNotIn("let units = [", source)
+        self.assertIn("let units = [];", source)
         self.assertNotIn('number: "001"', source)
+        self.assertNotIn(
+            'text: "Die Linearführung wird vor der Montage geprüft."',
+            source,
+        )
+        self.assertNotIn('text: "Des werd schon widder!"', source)
 
     def test_bridge_exposes_project_sync_and_stable_voice_change(self):
         source = BRIDGE.read_text(encoding="utf-8")
