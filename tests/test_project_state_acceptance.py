@@ -273,5 +273,41 @@ class ProjectStateAcceptanceTest(unittest.TestCase):
             original_ids["Absatz C."],
         )
 
+    def test_duplicate_paragraphs_preserve_occurrence_order(self):
+        project = create_project(
+            "Gleicher Absatz.\n\n"
+            "Gleicher Absatz.\n\n"
+            "Gleicher Absatz."
+        )
+
+        project["units"][1]["voiceId"] = (
+            "thorsten-hessisch"
+        )
+
+        original_ids = [
+            unit["id"]
+            for unit in project["units"]
+        ]
+
+        updated = sync_project(
+            project,
+            "Gleicher Absatz.\n\n"
+            "Gleicher Absatz.",
+        )
+
+        self.assertEqual(
+            [unit["id"] for unit in updated["units"]],
+            original_ids[:2],
+        )
+
+        self.assertEqual(
+            [unit["voiceId"] for unit in updated["units"]],
+            [
+                "thorsten-high",
+                "thorsten-hessisch",
+            ],
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
