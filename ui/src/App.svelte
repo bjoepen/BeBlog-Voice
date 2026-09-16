@@ -7,10 +7,23 @@
   let loading = true;
   let error = "";
   let syncTimer;
+  let audioByUnit = {};
 
   function applyView(view) {
     manuscript = view.manuscript;
-    units = view.units;
+    units = view.units.map((unit) => ({
+      ...unit,
+      audioState: audioByUnit[unit.id]?.audioState ?? unit.audioState,
+    }));
+  }
+
+  function setAudioResult(unitId, result) {
+    audioByUnit = { ...audioByUnit, [unitId]: result };
+    units = units.map((unit) =>
+      unit.id === unitId
+        ? { ...unit, audioState: result.audioState }
+        : unit
+    );
   }
 
   onMount(async () => {
@@ -39,7 +52,10 @@
     try {
       error = "";
       const view = await projectBridge.openProjectFile();
-      if (view) applyView(view);
+      if (view) {
+        audioByUnit = {};
+        applyView(view);
+      }
     } catch (reason) {
       error = String(reason);
     }
@@ -62,6 +78,23 @@
       error = String(reason);
     }
   }
+
+  async function renderUnit(unitId) {
+    const previousAudio = audioByUnit[unitId] ?? null;
+    setAudioResult(unitId, { ...previousAudio, audioState: "rendering" });
+
+    try {
+      error = "";
+      const result = await projectBridge.renderProjectUnit(unitId, previousAudio);
+      setAudioResult(unitId, result);
+      if (result.audioState === "error" && result.error) {
+        error = result.error;
+      }
+    } catch (reason) {
+      setAudioResult(unitId, { ...previousAudio, audioState: "error" });
+      error = String(reason);
+    }
+  }
 </script>
 
 <main class="shell">
@@ -71,7 +104,7 @@
       <h1>Voice</h1>
     </div>
     <div class="header-actions">
-      <p class="status">{units.length} Absätze · Audio noch nicht gerendert</p>
+      <p class="status">{units.length} Absätze · Audio pro Render Unit</p>
       <div class="project-actions" aria-label="Projektdatei">
         <button type="button" onclick={openProject}>Projekt öffnen</button>
         <button type="button" class="primary" onclick={saveProject}>Projekt speichern</button>
@@ -122,11 +155,20 @@
             <select
               value={unit.voiceId}
               onchange={(event) => setUnitVoice(unit.id, event.currentTarget.value)}
+              disabled={unit.audioState === "rendering"}
             >
               <option value="thorsten-high">Thorsten High</option>
               <option value="thorsten-hessisch">Thorsten Hessisch</option>
             </select>
           </label>
+          <button
+            type="button"
+            class="render-button"
+            onclick={() => renderUnit(unit.id)}
+            disabled={unit.audioState === "rendering"}
+          >
+            {unit.audioState === "rendering" ? "Rendert …" : "Rendern"}
+          </button>
         </article>
       {/each}
     </div>
@@ -147,6 +189,7 @@
   .project-actions { display: flex; gap: 8px; }
   button { border: 1px solid #d8d8d5; border-radius: 8px; background: white; padding: 8px 12px; font: inherit; color: #202124; cursor: pointer; }
   button:hover { background: #f7f7f5; }
+  button:disabled { cursor: default; opacity: .55; }
   button.primary { background: #292927; border-color: #292927; color: white; }
   button.primary:hover { background: #3a3a37; }
   .eyebrow, .label { margin: 0; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: #777; }
@@ -163,11 +206,12 @@
   }
   textarea:disabled { opacity: .6; }
   .units { display: grid; gap: 10px; }
-  .unit { display: grid; grid-template-columns: 52px 1fr 190px; gap: 16px; align-items: center; padding: 15px 0; border-top: 1px solid #ececea; }
+  .unit { display: grid; grid-template-columns: 52px 1fr 190px 92px; gap: 16px; align-items: center; padding: 15px 0; border-top: 1px solid #ececea; }
   .unit:first-child { border-top: 0; }
   .unit-number { font-variant-numeric: tabular-nums; color: #777; font-size: 13px; }
   .unit-content p { margin: 0 0 6px; line-height: 1.4; }
   .audio-state { font-size: 12px; color: #8a8a86; }
   label { display: grid; gap: 5px; font-size: 12px; color: #777; }
   select { width: 100%; border: 1px solid #d8d8d5; border-radius: 8px; background: white; padding: 8px 10px; font: inherit; color: #202124; }
+  .render-button { align-self: end; }
 </style>
