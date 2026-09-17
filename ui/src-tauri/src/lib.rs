@@ -1,5 +1,4 @@
 use serde_json::{json, Value};
-use std::collections::HashMap;
 use std::io::Write;
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
@@ -8,7 +7,7 @@ use tauri::State;
 use tauri_plugin_dialog::{DialogExt, FilePath};
 
 struct ProjectState(Mutex<Option<Value>>);
-struct PlaybackState(Mutex<HashMap<String, Child>>);
+struct PlaybackState(Mutex<Option<(String, Child)>>);
 
 fn repo_root() -> PathBuf { PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..") }
 fn call_python(request: Value) -> Result<Value, String> {
@@ -37,11 +36,11 @@ fn set_unit_voice(unit_id: String, voice_id: String, audio_by_unit: Value, state
 #[tauri::command]
 async fn render_project_unit(unit_id: String, previous_audio: Option<Value>, state: State<'_, ProjectState>) -> Result<Value, String> { let project = current_project(&state)?; let request = json!({ "action": "render", "project": project, "unitId": unit_id, "previousAudio": previous_audio }); tauri::async_runtime::spawn_blocking(move || call_python(request)).await.map_err(|error| format!("Render bridge task failed: {error}"))? }
 #[tauri::command]
-fn play_unit_audio(unit_id: String, audio_path: String, playback: State<'_, PlaybackState>) -> Result<(), String> { let path = PathBuf::from(audio_path); if !path.is_file() { return Err("Audio file is unavailable".to_string()); } let mut players = playback.0.lock().map_err(|_| "Playback state lock failed".to_string())?; if let Some(mut previous) = players.remove(&unit_id) { let _ = previous.kill(); let _ = previous.wait(); } let child = Command::new("afplay").arg(&path).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).spawn().map_err(|error| format!("Audio playback could not start: {error}"))?; players.insert(unit_id, child); Ok(()) }
+fn play_unit_audio(unit_id: String, audio_path: String, playback: State<'_, PlaybackState>) -> Result<(), String> { let path = PathBuf::from(audio_path); if !path.is_file() { return Err("Audio file is unavailable".to_string()); } let mut players = playback.0.lock().map_err(|_| "Playback state lock failed".to_string())?; if let Some((_, mut previous)) = players.take() { let _ = previous.kill(); let _ = previous.wait(); } let child = Command::new("afplay").arg(&path).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).spawn().map_err(|error| format!("Audio playback could not start: {error}"))?; *players = Some((unit_id, child)); Ok(()) }
 #[tauri::command]
-fn stop_unit_audio(unit_id: String, playback: State<'_, PlaybackState>) -> Result<(), String> { let mut players = playback.0.lock().map_err(|_| "Playback state lock failed".to_string())?; if let Some(mut child) = players.remove(&unit_id) { let _ = child.kill(); let _ = child.wait(); } Ok(()) }
+fn stop_unit_audio(unit_id: String, playback: State<'_, PlaybackState>) -> Result<(), String> { let mut players = playback.0.lock().map_err(|_| "Playback state lock failed".to_string())?; let should_stop = players.as_ref().map(|(active_id, _)| active_id == &unit_id).unwrap_or(false); if should_stop { if let Some((_, mut child)) = players.take() { let _ = child.kill(); let _ = child.wait(); } } Ok(()) }
 #[tauri::command]
-fn is_unit_audio_playing(unit_id: String, playback: State<'_, PlaybackState>) -> Result<bool, String> { let mut players = playback.0.lock().map_err(|_| "Playback state lock failed".to_string())?; let Some(child) = players.get_mut(&unit_id) else { return Ok(false); }; match child.try_wait().map_err(|error| format!("Playback state could not be read: {error}"))? { None => Ok(true), Some(_) => { players.remove(&unit_id); Ok(false) } } }
+fn is_unit_audio_playing(unit_id: String, playback: State<'_, PlaybackState>) -> Result<bool, String> { let mut players = playback.0.lock().map_err(|_| "Playback state lock failed".to_string())?; let Some((active_id, child)) = players.as_mut() else { return Ok(false); }; if active_id != &unit_id { return Ok(false); } match child.try_wait().map_err(|error| format!("Playback state could not be read: {error}"))? { None => Ok(true), Some(_) => { players.take(); Ok(false) } } }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
-pub fn run() { tauri::Builder::default().plugin(tauri_plugin_dialog::init()).manage(ProjectState(Mutex::new(None))).manage(PlaybackState(Mutex::new(HashMap::new()))).invoke_handler(tauri::generate_handler![load_project_state, open_project_file, save_project_file, sync_manuscript, set_unit_voice, render_project_unit, play_unit_audio, stop_unit_audio, is_unit_audio_playing,]).run(tauri::generate_context!()).expect("error while running BeBlog Voice"); }
+pub fn run() { tauri::Builder::default().plugin(tauri_plugin_dialog::init()).manage(ProjectState(Mutex::new(None))).manage(PlaybackState(Mutex::new(None))).invoke_handler(tauri::generate_handler![load_project_state, open_project_file, save_project_file, sync_manuscript, set_unit_voice, render_project_unit, play_unit_audio, stop_unit_audio, is_unit_audio_playing,]).run(tauri::generate_context!()).expect("error while running BeBlog Voice"); }
