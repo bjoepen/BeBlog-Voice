@@ -33,10 +33,10 @@ def _promote_audio_artifact(*, source, artifact_directory, unit_id: str):
 
     artifact_directory = Path(artifact_directory)
     artifact_directory.mkdir(parents=True, exist_ok=True)
-    target = artifact_directory / f"{unit_id}.wav"
+    target = artifact_directory / f"{unit_id}{source_path.suffix}"
 
     fd, temporary_name = tempfile.mkstemp(
-        prefix=f".{unit_id}.", suffix=".wav.tmp", dir=artifact_directory
+        prefix=f".{unit_id}.", suffix=".artifact.tmp", dir=artifact_directory
     )
     os.close(fd)
     temporary = Path(temporary_name)
