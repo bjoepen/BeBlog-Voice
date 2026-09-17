@@ -16,6 +16,7 @@ from src.runtime.piper import PiperRuntime
 from src.runtime.process import run_piper
 
 DEFAULT_MANUSCRIPT = "Die Linearführung wird vor der Montage geprüft.\n\nDes werd schon widder!"
+AUDIO_ARTIFACT_DIRECTORY = ROOT / ".local" / "audio-artifacts"
 
 
 def load_voices() -> dict:
@@ -97,7 +98,15 @@ def handle(request: dict) -> dict:
         previous_audio = request.get("previousAudio")
         if previous_audio is not None and not isinstance(previous_audio, dict):
             raise ValueError("previousAudio must be a dictionary")
-        return render_project_unit(project=project, unit_id=unit_id, pronunciation=load_pronunciation(), voices=voices, runtime=build_runtime(voices), previous_audio=previous_audio)
+        return render_project_unit(
+            project=project,
+            unit_id=unit_id,
+            pronunciation=load_pronunciation(),
+            voices=voices,
+            runtime=build_runtime(voices),
+            previous_audio=previous_audio,
+            artifact_directory=AUDIO_ARTIFACT_DIRECTORY,
+        )
 
     raise ValueError(f"unknown bridge action: {action!r}")
 
